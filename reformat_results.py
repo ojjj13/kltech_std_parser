@@ -63,6 +63,6 @@ def reformat_csv(input_csv, output_csv):
 
 
 if __name__ == '__main__':
-    input_csv = sys.argv[1] if len(sys.argv) > 1 else 'ptr_results.csv'
-    output_csv = sys.argv[2] if len(sys.argv) > 2 else 'final_results.csv'
+    input_csv = './ptr_results.csv'
+    output_csv = './final_results.csv'
     reformat_csv(input_csv, output_csv)
