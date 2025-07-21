@@ -104,7 +104,7 @@ def write_csv(ptr_records, output_csv):
     with open(output_csv, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=[
             'Site', 'TestNumber', 'Result', 'TestFlag',
-            'TestName', 'Units', 'LoLimit', 'HiLimit'
+            'TestName', 'Units', 'LoLimit', 'HiLimit', 'LoSpec', 'HiSpec'
         ])
         writer.writeheader()
         writer.writerows(ptr_records)
