@@ -18,50 +18,63 @@ def extract_test_number_from_name(name):
     return int(m.group(1)) if m else None
 
 def parse_ptr_record(data):
+    """Parse a single PTR record from binary bytes."""
+    record = {}
     try:
-        # ✅ 真实 TestNumber 是前4字节
-        test_num = struct.unpack('<I', data[0:4])[0]
+        pos = 0
+        if len(data) < 12:
+            return {'Error': 'Record too short'}
 
-        head_num = data[4]
-        site_num = data[5]
-        test_flg = data[6]
-        # parm_flg = data[7]  # 可忽略
+        record['TestNumber'] = struct.unpack('<I', data[pos:pos + 4])[0]
+        pos += 4
 
-        # ✅ 结果值在偏移 8
-        result = struct.unpack('<f', data[8:12])[0]
-        pos = 12
+        head_num = data[pos]
+        pos += 1
+        record['Site'] = data[pos]
+        pos += 1
+        record['TestFlag'] = data[pos]
+        pos += 1
+        parm_flg = data[pos]
+        pos += 1
+        record['Result'] = struct.unpack('<f', data[pos:pos + 4])[0]
+        pos += 4
 
-        # 解析 TestName, Alarm_ID, Units
-        test_txt, pos = read_stdf_cn_string(data, pos)
-        _, pos = read_stdf_cn_string(data, pos)      # ALARM_ID
-        units, pos = read_stdf_cn_string(data, pos)  # UNITS
+        record['TestName'], pos = read_stdf_cn_string(data, pos)
+        _, pos = read_stdf_cn_string(data, pos)  # Alarm ID
 
-        # 跳过 4 字节 padding
-        if pos + 4 <= len(data):
+        if pos >= len(data):
+            return record
+
+        # Optional fields (OPT_FLAG, scaling factors)
+        opt_flag = data[pos]
+        pos += 1
+        pos += 3  # res_scal, llm_scal, hlm_scal
+
+        if pos + 8 > len(data):
+            return record
+
+        record['LoLimit'] = struct.unpack('<f', data[pos:pos + 4])[0]
+        pos += 4
+        record['HiLimit'] = struct.unpack('<f', data[pos:pos + 4])[0]
+        pos += 4
+
+        record['Units'], pos = read_stdf_cn_string(data, pos)
+
+        # skip remaining Cn fields if present
+        for _ in range(3):
+            _, pos = read_stdf_cn_string(data, pos)
+
+        if pos + 8 <= len(data):
+            record['LoSpec'] = struct.unpack('<f', data[pos:pos + 4])[0]
+            pos += 4
+            record['HiSpec'] = struct.unpack('<f', data[pos:pos + 4])[0]
             pos += 4
 
-        # 读取上下限
-        lo_limit = hi_limit = None
-        if pos + 4 <= len(data):
-            lo_limit = struct.unpack('<f', data[pos:pos+4])[0]
-            pos += 4
-        if pos + 4 <= len(data):
-            hi_limit = struct.unpack('<f', data[pos:pos+4])[0]
-            pos += 4
-
-        return {
-            'Site': site_num,
-            'TestNumber': test_num,
-            'Result': result,
-            'TestFlag': test_flg,
-            'TestName': test_txt,
-            'Units': units,
-            'LoLimit': lo_limit,
-            'HiLimit': hi_limit
-        }
+        return record
 
     except Exception as e:
-        return {'Error': str(e)}
+        record['Error'] = str(e)
+        return record
 
 def read_stdf_file(file_path):
     ptr_records = []
