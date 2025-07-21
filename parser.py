@@ -1,3 +1,23 @@
+import struct
+
+
+def read_stdf_cn_string(data, pos):
+    """Read STDF Cn (ASCII) string starting at *pos*.
+
+    Returns the decoded string and the new position after the field.
+    """
+    if pos >= len(data):
+        return "", pos
+    length = data[pos]
+    pos += 1
+    raw = data[pos:pos + length]
+    pos += length
+    try:
+        return raw.decode("ascii", "ignore"), pos
+    except Exception:
+        return "", pos
+
+
 def parse_ptr_record(data):
     try:
         if len(data) < 12:
@@ -51,3 +71,34 @@ def parse_ptr_record(data):
 
     except Exception as e:
         return {'Error': str(e)}
+
+
+def parse_hex_file_to_csv(hex_file, csv_file):
+    """Parse hex strings from *hex_file* and write records to *csv_file*."""
+    import csv
+
+    records = []
+    with open(hex_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = bytes.fromhex(line)
+            except ValueError:
+                continue
+            rec = parse_ptr_record(data)
+            records.append(rec)
+
+    if not records:
+        return
+
+    fieldnames = list(records[0].keys())
+    with open(csv_file, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(records)
+
+
+if __name__ == "__main__":
+    parse_hex_file_to_csv("hex_code.txt", "result.csv")
